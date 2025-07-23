@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SQLite Login/Signup</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
+  <style>
+    body {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      font-family: Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    .container {
+      background: white;
+      padding: 2rem;
+      border-radius: 10px;
+      width: 350px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    }
+    .tabs {
+      display: flex;
+      margin-bottom: 1.5rem;
+    }
+    .tabs button {
+      flex: 1;
+      padding: 10px;
+      font-weight: bold;
+      border: none;
+      background: none;
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+    }
+    .tabs button.active {
+      border-bottom: 2px solid #667eea;
+      color: #667eea;
+    }
+    form {
+      display: none;
+      flex-direction: column;
+    }
+    form.active {
+      display: flex;
+    }
+    input {
+      margin-bottom: 1rem;
+      padding: 10px;
+      font-size: 1rem;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+    button.submit-btn {
+      background: #667eea;
+      color: white;
+      padding: 10px;
+      font-size: 1rem;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .message {
+      margin-top: 1rem;
+      font-size: 0.9rem;
+      color: green;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="tabs">
+      <button id="login-tab" class="active" onclick="switchTab('login')">Login</button>
+      <button id="signup-tab" onclick="switchTab('signup')">Signup</button>
+    </div>
+
+    <form id="login-form" class="active" onsubmit="handleLogin(event)">
+      <input type="email" id="login-email" placeholder="Email" required />
+      <input type="password" id="login-password" placeholder="Password" required />
+      <button class="submit-btn" type="submit">Login</button>
+    </form>
+
+    <form id="signup-form" onsubmit="handleSignup(event)">
+      <input type="text" id="signup-name" placeholder="Full Name" required />
+      <input type="email" id="signup-email" placeholder="Email" required />
+      <input type="password" id="signup-password" placeholder="Password" required />
+      <button class="submit-btn" type="submit">Signup</button>
+    </form>
+
+    <div class="message" id="message"></div>
+  </div>
+
+  <script>
+    let db;
+
+    async function initDB() {
+      const SQL = await initSqlJs({ locateFile: file => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${file}` });
+      db = new SQL.Database();
+      db.run(`CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT,
+        email TEXT UNIQUE,
+        password TEXT
+      );`);
+    }
+
+    function switchTab(tab) {
+      document.getElementById('login-tab').classList.remove('active');
+      document.getElementById('signup-tab').classList.remove('active');
+      document.getElementById('login-form').classList.remove('active');
+      document.getElementById('signup-form').classList.remove('active');
+
+      if (tab === 'login') {
+        document.getElementById('login-tab').classList.add('active');
+        document.getElementById('login-form').classList.add('active');
+      } else {
+        document.getElementById('signup-tab').classList.add('active');
+        document.getElementById('signup-form').classList.add('active');
+      }
+      document.getElementById('message').textContent = "";
+    }
+
+    function handleSignup(event) {
+      event.preventDefault();
+      const name = document.getElementById('signup-name').value;
+      const email = document.getElementById('signup-email').value;
+      const password = document.getElementById('signup-password').value;
+
+      try {
+        db.run("INSERT INTO users (name, email, password) VALUES (?, ?, ?);", [name, email, password]);
+        document.getElementById('message').textContent = "Signup successful!";
+        document.getElementById('signup-form').reset();
+      } catch (e) {
+        document.getElementById('message').textContent = "Signup failed: " + e.message;
+      }
+    }
+
+    function handleLogin(event) {
+      event.preventDefault();
+      const email = document.getElementById('login-email').value;
+      const password = document.getElementById('login-password').value;
+
+      const stmt = db.prepare("SELECT * FROM users WHERE email = ? AND password = ?");
+      stmt.bind([email, password]);
+
+      if (stmt.step()) {
+        const user = stmt.getAsObject();
+        document.getElementById('message').textContent = `Welcome, ${user.name}!`;
+      } else {
+        document.getElementById('message').textContent = "Invalid credentials.";
+      }
+    }
+
+    initDB();
+  </script>
+</body>
+</html>
